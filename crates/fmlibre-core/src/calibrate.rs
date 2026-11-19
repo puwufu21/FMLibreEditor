@@ -72,7 +72,7 @@ struct Miss {
 
 impl EntityArrays {
     /// No array found: what a session over memory of a test's own has (see `Session::over`).
-    #[cfg(all(test, windows))]
+    #[cfg(all(test, any(windows, target_os = "linux")))]
     pub(crate) fn none() -> Self {
         Self { players: None, staff: None, clubs: None, from_profile: false, missed: [None; 3] }
     }

@@ -12,7 +12,7 @@
 //! (".?AVGAME_COMP_STATS@@", ".?AVTEAM@db@@") after a vtable pointer and a spare word.
 
 use std::collections::HashMap;
-#[cfg(windows)]
+#[cfg(any(windows, target_os = "linux"))]
 use std::ops::Range;
 
 use fmlibre_mem::{Module, Process, Region, regions};
@@ -27,11 +27,11 @@ const NON_UNIQUE: u64 = 1 << 63;
 /// The bytes of a complete object locator (MSVC, x64): signature 1, the offset of the vtable in the object, a
 /// constructor displacement, then the offsets in the module of the type descriptor (at +12), of the class hierarchy
 /// and of the locator itself (at +20).
-#[cfg(windows)]
+#[cfg(any(windows, target_os = "linux"))]
 const LOCATOR: usize = 24;
 
 /// Where a type descriptor (MSVC) holds the class's name: after the pointer to `type_info`'s vtable and a spare word.
-#[cfg(windows)]
+#[cfg(any(windows, target_os = "linux"))]
 const DESCRIPTOR_NAME: u64 = 0x10;
 
 /// The name the compiler keeps for `class` (as written in C++, e.g. `db::TEAM`) in this build: [`itanium_name`] on
@@ -93,7 +93,7 @@ pub fn vtables(process: &Process, plugin: &Module, class: &str) -> Vec<u64> {
 /// The address points of the vtables the compiler made for `class` (as written in C++, e.g. `db::TEAM`, a class or a
 /// struct): what the first word of its objects holds. Only the vtables of whole objects, not those of a base inside
 /// another class.
-#[cfg(windows)]
+#[cfg(any(windows, target_os = "linux"))]
 pub fn vtables(process: &Process, plugin: &Module, class: &str) -> Vec<u64> {
     let name = msvc_name(class);
     // A struct's name starts ".?AU" where a class's starts ".?AV".
@@ -154,7 +154,7 @@ pub fn class_of(process: &Process, plugin: &Module, object: u64) -> Option<Strin
 
 /// The mangled name of the class of the object at `object` (see [`mangled`]); `None` when its first word is not a
 /// vtable of `plugin`.
-#[cfg(windows)]
+#[cfg(any(windows, target_os = "linux"))]
 pub fn class_of(process: &Process, plugin: &Module, object: u64) -> Option<String> {
     let vtable = process.read_u64(object).ok()?;
     if !plugin.contains(vtable) {
@@ -220,10 +220,10 @@ impl Stacks {
 
 /// The threads' stacks, which Windows does not tag: each thread's environment block says where its stack is (see
 /// [`fmlibre_mem::thread_stacks`]).
-#[cfg(windows)]
+#[cfg(any(windows, target_os = "linux"))]
 struct Stacks(Vec<Range<u64>>);
 
-#[cfg(windows)]
+#[cfg(any(windows, target_os = "linux"))]
 impl Stacks {
     fn of(process: &Process) -> fmlibre_mem::Result<Self> {
         fmlibre_mem::thread_stacks(process).map(Self)

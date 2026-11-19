@@ -22,12 +22,12 @@ use fmlibre_core::{
 };
 #[cfg(target_os = "macos")]
 use fmlibre_mem::MachImage;
-#[cfg(windows)]
+#[cfg(any(windows, target_os = "linux"))]
 use fmlibre_mem::PeImage;
 use fmlibre_mem::{Module, Process, is_current_process_elevated, is_user_pointer, list_modules, regions};
 use serde::Serialize;
 
-#[cfg(windows)]
+#[cfg(any(windows, target_os = "linux"))]
 const KEY_MODULES: [&str; 4] = [GAME_EXE, "UnityPlayer.dll", "GameAssembly.dll", GAME_PLUGIN];
 #[cfg(target_os = "macos")]
 const KEY_MODULES: [&str; 4] = [GAME_EXE, "UnityPlayer.dylib", "GameAssembly.dylib", GAME_PLUGIN];
@@ -35,7 +35,7 @@ const KEY_MODULES: [&str; 4] = [GAME_EXE, "UnityPlayer.dylib", "GameAssembly.dyl
 /// What being allowed more than a user is called: it opens the game on Windows, and not on macOS.
 #[cfg(windows)]
 const ELEVATED: &str = "Running as administrator";
-#[cfg(target_os = "macos")]
+#[cfg(any(target_os = "macos", target_os = "linux"))]
 const ELEVATED: &str = "Running as root";
 
 #[derive(Parser)]
@@ -2835,7 +2835,7 @@ fn find(
 
 /// A class's name as MSVC keeps it (`.?AVACTUAL_PLAYER@db@@`), written as in C++ (`db::ACTUAL_PLAYER`).
 /// Template names are left as they are.
-#[cfg(windows)]
+#[cfg(any(windows, target_os = "linux"))]
 fn demangle(name: &str) -> String {
     let inner = name.trim_start_matches(".?AV").trim_start_matches(".?AU").trim_end_matches("@@");
     if inner.starts_with("?$") {
@@ -2848,7 +2848,7 @@ fn demangle(name: &str) -> String {
 
 /// The type descriptors game_plugin.dll holds, by the address of each, with its class name as in C++. A descriptor
 /// is a vtable pointer, a spare word and the mangled name (MSVC's `.?AV…@@`).
-#[cfg(windows)]
+#[cfg(any(windows, target_os = "linux"))]
 fn type_descriptors(process: &Process, plugin: &Module) -> Vec<(u64, String)> {
     const CHUNK: u64 = 16 << 20;
     const LONGEST: usize = 512;
@@ -2950,7 +2950,7 @@ fn type_infos(process: &Process, plugin: &Module) -> Vec<(u64, String)> {
 
 fn types(process: &Process, modules: &[Module], text: &str, max: usize) -> Result<()> {
     let plugin = find_module(modules, GAME_PLUGIN).with_context(|| format!("{GAME_PLUGIN} is not loaded"))?;
-    #[cfg(windows)]
+    #[cfg(any(windows, target_os = "linux"))]
     let all = type_descriptors(process, plugin);
     #[cfg(target_os = "macos")]
     let all = type_infos(process, plugin);
@@ -4140,9 +4140,9 @@ fn staff_refs(session: &Session, ids: &[u32], back: u64, show: Option<&str>) -> 
         }
     }
     places.sort_unstable_by_key(|p| p.0);
-    #[cfg(windows)]
+    #[cfg(any(windows, target_os = "linux"))]
     let stacks = fmlibre_mem::thread_stacks(process).unwrap_or_default();
-    #[cfg(not(windows))]
+    #[cfg(not(any(windows, target_os = "linux")))]
     let stacks: Vec<std::ops::Range<u64>> = Vec::new();
     let modules = list_modules(process).context("listing modules")?;
 
@@ -4726,7 +4726,7 @@ fn graphics(root: Option<PathBuf>, clubs: &[u32]) -> Result<()> {
         Some(root) => root,
         None => {
             // FM keeps its user data in the documents folder on Windows, in Application Support on macOS.
-            #[cfg(windows)]
+            #[cfg(any(windows, target_os = "linux"))]
             let user_data =
                 PathBuf::from(std::env::var_os("USERPROFILE").context("USERPROFILE is not set; pass --root")?)
                     .join("Documents");
@@ -6765,7 +6765,7 @@ struct ModuleReport {
     path: PathBuf,
 }
 
-#[cfg(windows)]
+#[cfg(any(windows, target_os = "linux"))]
 #[derive(Serialize)]
 struct PluginReport {
     link_timestamp: String,
@@ -6844,7 +6844,7 @@ fn info(process: &Process, game: &GameInfo, modules: &[Module], elevated: bool, 
     Ok(())
 }
 
-#[cfg(windows)]
+#[cfg(any(windows, target_os = "linux"))]
 fn plugin_report(process: &Process, module: &Module) -> Result<PluginReport> {
     let pe = PeImage::read(process, module.base).with_context(|| format!("reading {GAME_PLUGIN} headers"))?;
     println!();
@@ -6929,7 +6929,7 @@ fn plugin_report(process: &Process, module: &Module) -> Result<PluginReport> {
 }
 
 /// Best-effort description of an exported symbol: a string, a pointer to a string, or raw bytes.
-#[cfg(windows)]
+#[cfg(any(windows, target_os = "linux"))]
 fn describe_symbol(process: &Process, pe: &PeImage, rva: u32) -> String {
     let location = match pe.section_for_rva(rva.into()) {
         Some(s) => format!("rva {rva:#x} in {} [{}]", s.name, s.flags()),
@@ -6950,7 +6950,7 @@ fn describe_symbol(process: &Process, pe: &PeImage, rva: u32) -> String {
 }
 
 /// The printable ASCII text at the start of `bytes`, if it is at least 4 characters long.
-#[cfg(windows)]
+#[cfg(any(windows, target_os = "linux"))]
 fn ascii_prefix(bytes: &[u8]) -> Option<String> {
     let len = bytes.iter().position(|&b| b == 0).unwrap_or(bytes.len());
     let text = &bytes[..len];
@@ -7024,7 +7024,7 @@ fn scan(
 }
 
 /// Names the section of `module` an RVA is in, or "?".
-#[cfg(windows)]
+#[cfg(any(windows, target_os = "linux"))]
 fn section_names(process: &Process, module: &Module) -> impl Fn(u64) -> String {
     let pe = PeImage::read(process, module.base).ok();
     move |rva| pe.as_ref().and_then(|pe| pe.section_for_rva(rva)).map_or_else(|| "?".to_owned(), |s| s.name.clone())

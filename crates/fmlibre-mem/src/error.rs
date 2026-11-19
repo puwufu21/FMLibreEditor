@@ -13,8 +13,8 @@ pub enum Error {
     /// A Mach call failed with the given `kern_return_t`.
     #[cfg(target_os = "macos")]
     Mach { op: &'static str, code: i32 },
-    /// A BSD call failed with the given `errno`.
-    #[cfg(target_os = "macos")]
+    /// A POSIX call failed with the given `errno`.
+    #[cfg(any(target_os = "macos", target_os = "linux"))]
     Posix { op: &'static str, code: i32 },
     /// macOS lets no other process into the game's memory, and the game was started without
     /// the FMLibreEditor bridge, the library that hands its memory over.
@@ -33,7 +33,7 @@ pub enum Error {
     /// committed, private, writable, non-executable memory (the heap), never in a module.
     NotWritable { addr: u64, len: usize },
     /// The bytes at `base` are not a 64-bit PE image.
-    #[cfg(windows)]
+    #[cfg(any(windows, target_os = "linux"))]
     InvalidPe { base: u64, reason: &'static str },
     /// The bytes at `base` are not a 64-bit Mach-O image.
     #[cfg(target_os = "macos")]
@@ -57,6 +57,24 @@ impl Error {
         matches!(self, Error::Win32 { code: ERROR_ACCESS_DENIED, .. })
     }
 
+    /// True when the kernel refused the editor the game's memory (ptrace rules: `kernel.yama.ptrace_scope`,
+    /// `CAP_SYS_PTRACE`).
+    #[cfg(target_os = "linux")]
+    pub fn is_access_denied(&self) -> bool {
+        const DENIED: [u32; 2] = [libc::EPERM as u32, libc::EACCES as u32];
+        match self {
+            Error::Posix { code, .. } => DENIED.contains(&(*code as u32)),
+            Error::Read { code, .. } | Error::Write { code, .. } => DENIED.contains(code),
+            _ => false,
+        }
+    }
+
+    /// The error of a failed file operation in `/proc`.
+    #[cfg(target_os = "linux")]
+    pub(crate) fn io(op: &'static str, err: &std::io::Error) -> Self {
+        Error::Posix { op, code: err.raw_os_error().unwrap_or(libc::EIO) }
+    }
+
     /// Always false: macOS refuses with [`Error::NoBridge`], which running as root does not change.
     #[cfg(target_os = "macos")]
     pub fn is_access_denied(&self) -> bool {
@@ -71,7 +89,14 @@ impl fmt::Display for Error {
             Error::Win32 { op, code } => write!(f, "{op} failed: {}", describe(*code)),
             #[cfg(target_os = "macos")]
             Error::Mach { op, code } => write!(f, "{op} failed: {}", describe(*code as u32)),
-            #[cfg(target_os = "macos")]
+            #[cfg(target_os = "linux")]
+            Error::Posix { op, code } if *code == libc::EPERM || *code == libc::EACCES => write!(
+                f,
+                "{op} failed: Linux does not let FMLibreEditor into the game's memory (errno {code}). With \
+                 kernel.yama.ptrace_scope = 1, give the editor CAP_SYS_PTRACE (sudo setcap cap_sys_ptrace+ep \
+                 <editor>) or run `sudo sysctl kernel.yama.ptrace_scope=0` for this session"
+            ),
+            #[cfg(any(target_os = "macos", target_os = "linux"))]
             Error::Posix { op, code } => {
                 write!(f, "{op} failed: {} (errno {code})", std::io::Error::from_raw_os_error(*code))
             }
@@ -95,7 +120,7 @@ impl fmt::Display for Error {
             Error::NotWritable { addr, len } => {
                 write!(f, "refusing to write {len:#x} bytes at {addr:#x}: not in the game's writable heap memory")
             }
-            #[cfg(windows)]
+            #[cfg(any(windows, target_os = "linux"))]
             Error::InvalidPe { base, reason } => write!(f, "no valid PE image at {base:#x}: {reason}"),
             #[cfg(target_os = "macos")]
             Error::InvalidMachO { base, reason } => write!(f, "no valid Mach-O image at {base:#x}: {reason}"),
@@ -112,6 +137,12 @@ fn describe(code: u32) -> String {
         ERROR_PARTIAL_COPY => "only part of the range is readable (Win32 error 299)".to_owned(),
         code => format!("Win32 error {code}"),
     }
+}
+
+/// An `errno` in words, e.g. "Operation not permitted (errno 1)".
+#[cfg(target_os = "linux")]
+fn describe(code: u32) -> String {
+    format!("{} (errno {code})", std::io::Error::from_raw_os_error(code as i32))
 }
 
 /// A `kern_return_t` in words, e.g. "(os/kern) invalid address (Mach error 1)".

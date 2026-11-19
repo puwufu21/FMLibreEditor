@@ -21,7 +21,7 @@ impl Coded for MemoryError {
             MemoryError::Win32 { .. } => "memory.win32",
             #[cfg(target_os = "macos")]
             MemoryError::Mach { .. } => "memory.mach",
-            #[cfg(target_os = "macos")]
+            #[cfg(any(target_os = "macos", target_os = "linux"))]
             MemoryError::Posix { .. } => "memory.posix",
             #[cfg(target_os = "macos")]
             MemoryError::NoBridge { .. } => "memory.noBridge",
@@ -31,7 +31,7 @@ impl Coded for MemoryError {
             MemoryError::Write { .. } => "memory.write",
             MemoryError::ReadOnly => "memory.readOnly",
             MemoryError::NotWritable { .. } => "memory.notWritable",
-            #[cfg(windows)]
+            #[cfg(any(windows, target_os = "linux"))]
             MemoryError::InvalidPe { .. } => "memory.invalidPe",
             #[cfg(target_os = "macos")]
             MemoryError::InvalidMachO { .. } => "memory.invalidMachO",
@@ -46,6 +46,8 @@ impl Coded for MemoryError {
             MemoryError::Mach { op, code } | MemoryError::Posix { op, code } => {
                 vec![("operation", (*op).to_owned()), ("code", code.to_string())]
             }
+            #[cfg(target_os = "linux")]
+            MemoryError::Posix { op, code } => vec![("operation", (*op).to_owned()), ("code", code.to_string())],
             #[cfg(target_os = "macos")]
             MemoryError::NoBridge { pid } => vec![("pid", pid.to_string())],
             #[cfg(target_os = "macos")]
@@ -54,7 +56,7 @@ impl Coded for MemoryError {
                 vec![("address", format!("{addr:#x}")), ("code", code.to_string())]
             }
             MemoryError::NotWritable { addr, .. } => vec![("address", format!("{addr:#x}"))],
-            #[cfg(windows)]
+            #[cfg(any(windows, target_os = "linux"))]
             MemoryError::InvalidPe { base, .. } => vec![("address", format!("{base:#x}"))],
             #[cfg(target_os = "macos")]
             MemoryError::InvalidMachO { base, .. } => vec![("address", format!("{base:#x}"))],

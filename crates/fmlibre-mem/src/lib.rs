@@ -1,4 +1,4 @@
-//! Access to another process's memory on Windows and macOS.
+//! Access to another process's memory on Windows, macOS, and Linux (the Windows game under Wine or Proton).
 //!
 //! This crate knows nothing about Football Manager. It finds and opens
 //! processes, lists their modules and memory regions, reads bytes and parses
@@ -10,18 +10,28 @@
 //! allows it, which the game does not. The game hands its memory over itself instead,
 //! through the small library of `fmlibre-bridge` that it loads at start; [`bridge`] is
 //! what the two sides say to each other.
+//!
+//! On Linux the game is the Windows build run by Wine or Proton: its modules are PE images, read as on Windows,
+//! in memory reached through `process_vm_readv` and `process_vm_writev`.
 
-#![cfg(any(windows, target_os = "macos"))]
+#![cfg(any(windows, target_os = "macos", target_os = "linux"))]
 
 mod error;
 mod module;
 
+#[cfg(target_os = "linux")]
+mod linux;
 #[cfg(target_os = "macos")]
 mod macos;
 #[cfg(windows)]
 mod windows;
 
 pub use error::{Error, Result};
+#[cfg(target_os = "linux")]
+pub use linux::{
+    Export, PeImage, Process, ProcessEntry, Region, Section, find_processes, is_current_process_elevated, list_modules,
+    region_at, regions, thread_stacks,
+};
 #[cfg(target_os = "macos")]
 pub use macos::{
     MachImage, MachSection, Process, ProcessEntry, Region, Segment, bridge, find_processes, is_apple_silicon,
@@ -35,7 +45,7 @@ pub use windows::{
 };
 
 /// Whether `p` looks like a user-mode pointer: 8-byte aligned and inside the
-/// canonical user address range of a 64-bit process, on Windows and on macOS alike.
+/// canonical user address range of a 64-bit process, on Windows, macOS and Linux alike.
 pub fn is_user_pointer(p: u64) -> bool {
     p.is_multiple_of(8) && (0x1_0000..0x7FFF_FFFF_0000).contains(&p)
 }

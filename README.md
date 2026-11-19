@@ -5,6 +5,9 @@ while the game runs.
 
 Works on **Windows** (Xbox / Game Pass and Steam) and **macOS** (Steam).
 
+**Linux (Steam, Proton): experimental**, on the `linux-backend` branch of this fork. Build it from source; see
+[docs/LINUX.md](docs/LINUX.md).
+
 [![Latest release](https://img.shields.io/github/v/release/tozmoz/FMLibreEditor?label=release)](https://github.com/tozmoz/FMLibreEditor/releases/latest)
 [![Downloads](https://img.shields.io/github/downloads/tozmoz/FMLibreEditor/total)](https://github.com/tozmoz/FMLibreEditor/releases)
 [![License: GPL-3.0](https://img.shields.io/github/license/tozmoz/FMLibreEditor)](LICENSE)

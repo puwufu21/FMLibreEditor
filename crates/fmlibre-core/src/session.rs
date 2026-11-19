@@ -547,7 +547,7 @@ impl Session {
     }
 }
 
-#[cfg(all(test, windows))]
+#[cfg(all(test, any(windows, target_os = "linux")))]
 impl Session {
     /// A session over `process`, a test's own, with `layout` and no game, profile or arrays behind it: for the writes
     /// that only follow the pointers a test has laid out in memory of its own, such as an undo (see `Session::revert`),
@@ -623,10 +623,10 @@ impl Session {
 /// Memory of a test's own for the objects of teams and players: blocks of [`Blocks::SIZE`] bytes, each holding every
 /// field of an object the checks read. A test writes it through a [`Session::over`] its own process, and nothing else
 /// touches it while it lives.
-#[cfg(all(test, windows))]
+#[cfg(all(test, any(windows, target_os = "linux")))]
 pub(crate) struct Blocks(Vec<u64>);
 
-#[cfg(all(test, windows))]
+#[cfg(all(test, any(windows, target_os = "linux")))]
 impl Blocks {
     pub(crate) const SIZE: u64 = 0x800;
 

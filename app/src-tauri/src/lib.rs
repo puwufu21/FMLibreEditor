@@ -1,4 +1,6 @@
 mod bridge;
+#[cfg(target_os = "linux")]
+mod proton;
 mod self_update;
 
 use std::cell::OnceCell;
@@ -5001,8 +5003,11 @@ pub fn run() {
             // GRAPHICS_FOLDER can name.
             #[cfg(target_os = "macos")]
             let user_data = app.path().data_dir();
-            #[cfg(not(target_os = "macos"))]
+            #[cfg(windows)]
             let user_data = app.path().document_dir();
+            // Under Proton, FM keeps it in the documents folder of its Wine prefix.
+            #[cfg(target_os = "linux")]
+            let user_data = proton::documents(27).ok_or(()).or_else(|()| app.path().document_dir().map_err(|_| ()));
             let root = match std::env::var_os(GRAPHICS_FOLDER) {
                 Some(folder) => Some(PathBuf::from(folder)),
                 None => user_data.ok().map(|folder| GraphicsIndex::default_root(&folder, 27)),

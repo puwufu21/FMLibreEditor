@@ -1102,7 +1102,7 @@ pub enum PluginFingerprint {
 
 impl PluginFingerprint {
     /// Reads the fingerprint of the game plugin `plugin` from the headers mapped in `process`.
-    #[cfg(windows)]
+    #[cfg(any(windows, target_os = "linux"))]
     pub fn read(process: &Process, plugin: &Module) -> fmlibre_mem::Result<Self> {
         let image = fmlibre_mem::PeImage::read(process, plugin.base)?;
         Ok(Self::Pe { size_of_image: image.size_of_image, link_timestamp: image.timestamp })
@@ -1155,7 +1155,7 @@ pub struct ArrayRvas {
     pub clubs: u64,
 }
 
-#[cfg(windows)]
+#[cfg(any(windows, target_os = "linux"))]
 const LAYOUTS: &[&str] = &[include_str!("../../../profiles/fm27/layout.toml")];
 
 /// On macOS the game is built with clang, which lays some of its classes out otherwise.
@@ -1831,7 +1831,7 @@ mod tests {
             );
         }
         // On Windows: the new builds' places, 4 and 8 bytes past the old ones.
-        #[cfg(windows)]
+        #[cfg(any(windows, target_os = "linux"))]
         for profile in built_in_profiles().filter(|profile| !profile.layout.is_empty() && windows(profile)) {
             let laid = layout_of(27, &profile.layout).expect("FM27 layout");
             let laid_tactics = laid.tactics.expect("the layout places the tactics");

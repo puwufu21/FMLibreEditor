@@ -4,7 +4,7 @@ use fmlibre_mem::Process;
 use serde::{Deserialize, Serialize};
 
 /// Executable name of Football Manager on Windows (Steam, Epic and Game Pass alike).
-#[cfg(windows)]
+#[cfg(any(windows, target_os = "linux"))]
 pub const GAME_EXE: &str = "fm.exe";
 
 /// Executable name of Football Manager 27 on macOS, inside `fm.app/Contents/MacOS`.
@@ -12,7 +12,7 @@ pub const GAME_EXE: &str = "fm.exe";
 pub const GAME_EXE: &str = "Football Manager 27";
 
 /// Native module that holds the game database and simulation.
-#[cfg(windows)]
+#[cfg(any(windows, target_os = "linux"))]
 pub const GAME_PLUGIN: &str = "game_plugin.dll";
 
 /// Native module that holds the game database and simulation: the executable of

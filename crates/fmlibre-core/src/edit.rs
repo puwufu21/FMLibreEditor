@@ -1353,7 +1353,7 @@ mod tests {
     /// The undo of a squad number change, through a team laid out in memory of the test's own as the game lays it out:
     /// its players' list, and each player's team and contract, which points back at him. Only where a process can open
     /// itself (Windows); the check that no other player of the team wears the number is the same one a new edit has.
-    #[cfg(windows)]
+    #[cfg(any(windows, target_os = "linux"))]
     #[test]
     fn a_squad_number_goes_back_only_while_no_team_mate_wears_it() {
         use crate::session::Blocks;

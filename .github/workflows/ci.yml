@@ -1,4 +1,4 @@
-# Checks every pull request, and every push to main, on Windows and macOS: the interface builds, the Rust code is
+# Checks every pull request, and every push to main, on Windows, macOS and Linux: the interface builds, the Rust code is
 # formatted, clippy has no warnings and the tests pass. These are the checks CONTRIBUTING.md asks for, so a
 # contributor sees them pass or fail on the pull request itself. They need no game and no secrets, so they run on
 # pull requests from forks too. Building the installers is release.yml's job; it drafts a release only once these
@@ -81,6 +81,41 @@ jobs:
         run: npm run build
 
       # The macOS side of the code; the formatting is checked on Windows.
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: Tests
+        run: cargo test --workspace
+
+  # Linux runs the Windows game under Proton; the editor reads it as on Windows, through /proc.
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Install the libraries Tauri builds against
+        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev libssl-dev
+
+      - name: Install the interface's packages
+        working-directory: app
+        run: npm ci
+
+      - name: Build the interface
+        working-directory: app
+        run: npm run build
+
       - name: Clippy
         run: cargo clippy --workspace --all-targets -- -D warnings
 

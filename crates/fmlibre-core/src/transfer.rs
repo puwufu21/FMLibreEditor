@@ -1691,7 +1691,7 @@ mod tests {
 
     /// The undo of a move, through teams laid out in memory of the test's own as the game lays them out (see
     /// `Session::over`): Windows only.
-    #[cfg(windows)]
+    #[cfg(any(windows, target_os = "linux"))]
     #[test]
     fn a_move_is_undone_only_while_no_team_mate_wears_the_number_he_left() {
         use crate::session::Blocks;
